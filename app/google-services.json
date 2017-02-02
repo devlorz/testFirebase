@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "414939219817",
+    "firebase_url": "https://test-firebase-e083f.firebaseio.com",
+    "project_id": "test-firebase-e083f",
+    "storage_bucket": "test-firebase-e083f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:414939219817:android:949917541fde57be",
+        "android_client_info": {
+          "package_name": "com.leeway.testfirebase"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "414939219817-0tve5db4gm5busc6jpb6a5ge1oq1pe73.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApnBNMCMdvrNYo7ad8_UWHQycXMqKaGhw"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "414939219817-0tve5db4gm5busc6jpb6a5ge1oq1pe73.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
