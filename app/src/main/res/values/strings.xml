@@ -32,4 +32,6 @@
     <string name="title_send_password_reset">Send password reset</string>
     <string name="title_delete_user">Delete a user</string>
     <string name="updated">%s updated.</string>
+
+    <string name="facebook_app_id">1825395204381574</string>
 </resources>
