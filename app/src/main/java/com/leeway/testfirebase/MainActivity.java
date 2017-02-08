@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
@@ -20,6 +21,15 @@ import com.facebook.FacebookSdk;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.SignInButton;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthCredential;
@@ -27,12 +37,16 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FacebookAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GoogleAuthProvider;
 
-public class MainActivity extends BaseActivity implements View.OnClickListener{
+public class MainActivity extends BaseActivity implements GoogleApiClient.OnConnectionFailedListener, View.OnClickListener{
+
+    private static final int RC_SIGN_IN = 9001;
 
     private FirebaseAuth mAuth;
     private FirebaseAuth.AuthStateListener mAuthListener;
     private CallbackManager mCallbackManager;
+    private GoogleApiClient mGoogleApiClient;
 
     TextView tvProfile;
     EditText editTextEmail;
@@ -41,6 +55,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
     Button btnCreateAccount;
     Button btnSignOut;
     LoginButton btnFacebook;
+    SignInButton btnGoogleSignIn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +64,8 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
         setContentView(R.layout.activity_main);
 
         initInstances();
+
+
     }
 
     private void initInstances() {
@@ -67,6 +84,18 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
         };
         mCallbackManager = CallbackManager.Factory.create();
 
+        // Google sign in
+        GoogleSignInOptions gso = new GoogleSignInOptions
+                .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .enableAutoManage(this, this)
+                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                .build();
+
         tvProfile = (TextView) findViewById(R.id.tvProfile);
         editTextEmail = (EditText) findViewById(R.id.editTextEmail);
         editTextPassword = (EditText) findViewById(R.id.editTextPassword);
@@ -74,6 +103,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
         btnCreateAccount = (Button) findViewById(R.id.btnCreateAccount);
         btnSignOut = (Button) findViewById(R.id.btnSignOut);
         btnFacebook = (LoginButton) findViewById(R.id.btnFacebookLogin);
+        btnGoogleSignIn = (SignInButton) findViewById(R.id.btnGoogleSignIn);
 
         btnSignin.setOnClickListener(this);
         btnCreateAccount.setOnClickListener(this);
@@ -95,6 +125,8 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
                 updateUI(null);
             }
         });
+
+        btnGoogleSignIn.setOnClickListener(this);
     }
 
     private void updateUI(FirebaseUser user) {
@@ -145,10 +177,18 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
             case R.id.btnCreateAccount:
                 createAccount(editTextEmail.getText().toString(), editTextPassword.getText().toString());
                 break;
+            case R.id.btnGoogleSignIn:
+                signIn();
+                break;
             case R.id.btnSignOut:
                 signOut();
                 break;
         }
+    }
+
+    private void signIn() {
+        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
+        startActivityForResult(signInIntent, RC_SIGN_IN);
     }
 
     private void signOut() {
@@ -161,6 +201,13 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
                 mAuth.signOut();
                 LoginManager.getInstance().logOut();
                 updateUI(null);
+
+                Auth.GoogleSignInApi.signOut(mGoogleApiClient).setResultCallback(new ResultCallback<Status>() {
+                    @Override
+                    public void onResult(@NonNull Status status) {
+                        updateUI(null);
+                    }
+                });
             }
         });
         alert.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
@@ -206,6 +253,35 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         mCallbackManager.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RC_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            if (result.isSuccess()) {
+                // success
+                GoogleSignInAccount account = result.getSignInAccount();
+                firebaseAuthWithGoogle(account);
+            } else {
+                updateUI(null);
+            }
+        }
+    }
+
+    private void firebaseAuthWithGoogle(GoogleSignInAccount acct) {
+        showProgressDialog();
+
+        AuthCredential credential = GoogleAuthProvider.getCredential(acct.getIdToken(), null);
+        mAuth.signInWithCredential(credential).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                if(!task.isSuccessful()) {
+                    tvProfile.setTextColor(Color.RED);
+                    tvProfile.setText(task.getException().getMessage());
+                } else {
+                    tvProfile.setTextColor(Color.DKGRAY);
+                }
+                hideProgressDialog();
+            }
+        });
     }
 
     private void handleFacebookAcessToken(AccessToken token) {
@@ -224,5 +300,10 @@ public class MainActivity extends BaseActivity implements View.OnClickListener{
                 hideProgressDialog();
             }
         });
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Toast.makeText(this, "Google Play Service error.", Toast.LENGTH_SHORT).show();
     }
 }
